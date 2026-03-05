@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Moviqo Payment Test</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <style>
+        body { font-family: Arial; max-width: 500px; margin: 50px auto; padding: 20px; }
+        button { background: purple; color: white; padding: 10px 20px; border: none; cursor: pointer; border-radius: 5px; font-size: 16px; }
+        input { width: 100%; padding: 8px; margin: 5px 0 15px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        label { font-weight: bold; }
+        #response { background: #f0f0f0; padding: 15px; margin-top: 20px; border-radius: 5px; display: none; }
+    </style>
+</head>
+<body>
+    <h2>Moviqo Payment Test</h2>
+
+    <label>Access Token (from login):</label>
+    <input type="text" id="token" placeholder="paste your Bearer token here" />
+
+    <label>Plan ID:</label>
+    <input type="number" id="plan_id" value="1" />
+
+    <button onclick="startPayment()">Pay Now</button>
+
+    <div id="response"></div>
+
+    <script>
+        const BASE_URL = "http://127.0.0.1:8000";
+
+        async function startPayment() {
+            const token = document.getElementById("token").value;
+            const plan_id = document.getElementById("plan_id").value;
+
+            if (!token) {
+                alert("Please paste your access token!");
+                return;
+            }
+
+            // Step 1 - Create Order
+            const orderRes = await fetch(`${BASE_URL}/payments/create-order/`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ plan_id: parseInt(plan_id) })
+            });
+
+            const orderData = await orderRes.json();
+            console.log("Order created:", orderData);
+
+            if (!orderData.order_id) {
+                showResponse("❌ Order creation failed: " + JSON.stringify(orderData));
+                return;
+            }
+
+            // Step 2 - Open Razorpay popup
+            const options = {
+                key: orderData.key_id,
+                amount: orderData.amount,
+                currency: orderData.currency,
+                order_id: orderData.order_id,
+                name: "Moviqo",
+                description: orderData.plan.name + " Plan",
+                prefill: {
+                    email: orderData.user.email,
+                    name: orderData.user.full_name,
+                },
+                theme: { color: "#6B21A8" },
+
+                handler: async function(response) {
+                    console.log("Payment done:", response);
+
+                    // Step 3 - Verify Payment
+                    const verifyRes = await fetch(`${BASE_URL}/payments/verify/`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature
+                        })
+                    });
+
+                    const verifyData = await verifyRes.json();
+                    console.log("Verify response:", verifyData);
+
+                    if (verifyData.message) {
+                        showResponse("✅ Payment Successful! Subscription activated!\n\n" + JSON.stringify(verifyData, null, 2));
+                    } else {
+                        showResponse("❌ Verification failed: " + JSON.stringify(verifyData, null, 2));
+                    }
+                }
+            };
+
+            const rzp = new Razorpay(options);
+            rzp.open();
+        }
+
+        function showResponse(msg) {
+            const div = document.getElementById("response");
+            div.style.display = "block";
+            div.innerText = msg;
+        }
+    </script>
+</body>
+</html>
