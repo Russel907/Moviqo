@@ -53,8 +53,7 @@ class CreateOrderAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-
-        # 🚫 Prevent multiple active subscriptions
+        # Prevent multiple active subscriptions
         subscription = UserSubscription.objects.filter(
             user=request.user,
             is_active=True
@@ -70,6 +69,7 @@ class CreateOrderAPIView(APIView):
         serializer.is_valid(raise_exception=True)
 
         plan = Plan.objects.get(id=serializer.validated_data['plan_id'])
+
         # Create Razorpay order
         razorpay_order = client.order.create({
             "amount": plan.amount,
@@ -81,27 +81,27 @@ class CreateOrderAPIView(APIView):
                 "email": request.user.email,
             }
         })
-        # Save payment in DB
+
+        # Save to DB
         payment = Payment.objects.create(
             user=request.user,
             plan=plan,
-            razorpay_order_id=razorpay_order["id"],
+            razorpay_order_id=razorpay_order['id'],
             amount=plan.amount,
-            status="created"
+            status='created',
         )
-        
+
         return Response({
-            "order_id": razorpay_order["id"],
+            "order_id": razorpay_order['id'],
             "amount": plan.amount,
             "currency": "INR",
             "key_id": settings.RAZORPAY_KEY_ID,
             "plan": PlanSerializer(plan).data,
             "user": {
                 "email": request.user.email,
-                "full_name": request.user.full_name
+                "full_name": request.user.full_name,
             }
         }, status=status.HTTP_201_CREATED)
-
 # ─────────────────────────────────────────────
 # 3. Verify Payment after frontend completes it
 # POST /payments/verify/
@@ -279,7 +279,9 @@ class RazorpayWebhookAPIView(APIView):
             payment_id = refund_data["payment_id"]
 
             try:
-                payment = Payment.objects.get(razorpay_payment_id=payment_id)
+                payment = Payment.objects.filter(razorpay_payment_id=payment_id).first()
+                if not payment:
+                    return Response({"status": "success"})
                 payment.status = "failed"
                 payment.save()
 
