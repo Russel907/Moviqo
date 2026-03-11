@@ -272,6 +272,20 @@ class RazorpayWebhookAPIView(APIView):
 
             except Payment.DoesNotExist:
                 pass
+                
+        # Handle payment failed
+        if event == "payment.failed":
+            payment_data = data["payload"]["payment"]["entity"]
+            order_id = payment_data["order_id"]
+            try:
+                payment = Payment.objects.filter(
+                    razorpay_order_id=order_id
+                ).first()
+                if payment:
+                    payment.status = "failed"
+                    payment.save()
+            except Exception:
+                pass
 
         # Handle refund
         if event == "refund.processed":
