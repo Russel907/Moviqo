@@ -27,7 +27,7 @@ import json
 
 # Initialize Razorpay client
 client = razorpay.Client(
-    auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
+    auth=(settings.RAZORPAY_KEY_ID or "", settings.RAZORPAY_KEY_SECRET or "")
 )
 
 
@@ -128,6 +128,11 @@ class VerifyPaymentAPIView(APIView):
             return Response(
                 {"error": "Payment record not found."},
                 status=status.HTTP_404_NOT_FOUND
+            )
+        if payment.status == "paid":
+            return Response(
+                {"message": "Payment already verified."},
+                status=status.HTTP_200_OK
             )
 
         # Verify signature
@@ -258,7 +263,7 @@ class RazorpayWebhookAPIView(APIView):
 
                 # Activate subscription
                 plan = payment.plan
-                expires_at = timezone.now() + self._get_expiry(plan.duration)
+                expires_at = self._get_expiry(plan.duration)
 
                 UserSubscription.objects.update_or_create(
                     user=payment.user,
@@ -272,7 +277,7 @@ class RazorpayWebhookAPIView(APIView):
 
             except Payment.DoesNotExist:
                 pass
-                
+
         # Handle payment failed
         if event == "payment.failed":
             payment_data = data["payload"]["payment"]["entity"]

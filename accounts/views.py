@@ -6,11 +6,9 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 
 from .serializers import SignupSerializer, LoginSerializer, UserSerializer
-
 
 class SignupAPIView(APIView):
     permission_classes = [AllowAny]
