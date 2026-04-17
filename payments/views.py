@@ -316,10 +316,20 @@ class RazorpayWebhookAPIView(APIView):
         return Response({"status": "success"})
 
     def _get_expiry(self, duration):
+        now = timezone.now()
         mapping = {
             'weekly': timedelta(weeks=1),
             'monthly': timedelta(days=30),
             'yearly': timedelta(days=365),
             'lifetime': timedelta(days=36500),
         }
-        return mapping.get(duration, timedelta(days=30))
+        return now + mapping.get(duration, timedelta(days=30))
+
+    # def _get_expiry(self, duration):
+    # mapping = {
+    #     'weekly': timedelta(weeks=1),
+    #     'monthly': timedelta(days=30),
+    #     'yearly': timedelta(days=365),
+    #     'lifetime': timedelta(days=36500),
+    # }
+    # return mapping.get(duration, timedelta(days=30))
